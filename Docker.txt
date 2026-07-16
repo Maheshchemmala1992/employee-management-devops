@@ -1,0 +1,218 @@
+docker run -d \
+--name jenkins \
+-p 8080:8080 \
+-p 50000:50000 \
+-v jenkins_home:/var/jenkins_home \
+jenkins/jenkins:lts
+
+=====================
+docker exec -it jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+===================
+
+pipeline {
+    agent any
+
+    tools {
+        maven 'mvn'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                    credentialsId: 'git-creds',
+                    url: 'https://github.com/Maheshchemmala1992/employee-management-devops.git'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh 'mvn clean package'
+            }
+        }
+    }
+}
+
+===================
+pipeline {
+    agent any
+
+    tools {
+        maven 'mvn'
+    }
+
+    environment {
+        IMAGE_NAME = "maheshmaha/java-webapp"
+        IMAGE_TAG  = "${BUILD_NUMBER}"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                    credentialsId: 'git-creds',
+                    url: 'https://github.com/Maheshchemmala1992/employee-management-devops.git'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh 'mvn clean package'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest
+                '''
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'docker-creds',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+
+                    sh '''
+                    echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+
+                    docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                    docker push ${IMAGE_NAME}:latest
+
+                    docker logout
+                    '''
+                }
+            }
+        }
+
+    }
+
+    post {
+
+        success {
+            echo 'Pipeline Completed Successfully'
+        }
+
+        failure {
+            echo 'Pipeline Failed'
+        }
+
+        always {
+            cleanWs()
+        }
+
+    }
+}
+======================DEPLOY
+pipeline {
+
+    agent any
+
+    tools {
+        maven 'mvn'
+    }
+
+    environment {
+        IMAGE_NAME = "maheshmaha/javaweb-app"
+        IMAGE_TAG  = "${BUILD_NUMBER}"
+        CONTAINER_NAME = "javaweb-app"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                    credentialsId: 'git-creds',
+                    url: 'https://github.com/Maheshchemmala1992/employee-management-devops.git'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh 'mvn clean package'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest
+                '''
+            }
+        }
+
+        stage('Docker Login') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'docker-creds',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+
+                    sh '''
+                    echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                    '''
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                sh '''
+                docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                docker push ${IMAGE_NAME}:latest
+                '''
+            }
+        }
+
+        stage('Deploy Container') {
+            steps {
+                sh '''
+                docker rm -f ${CONTAINER_NAME} || true
+
+                docker run -d \
+                  --name ${CONTAINER_NAME} \
+                  -p 8081:8080 \
+                  ${IMAGE_NAME}:${IMAGE_TAG}
+                '''
+            }
+        }
+
+    }
+
+    post {
+
+        success {
+            echo "====================================="
+            echo "Pipeline Completed Successfully"
+            echo "Docker Image : ${IMAGE_NAME}:${IMAGE_TAG}"
+            echo "Application : http://YOUR_SERVER_IP:8081"
+            echo "====================================="
+        }
+
+        failure {
+            echo "====================================="
+            echo "Pipeline Failed"
+            echo "====================================="
+        }
+
+        always {
+            sh 'docker logout || true'
+            cleanWs()
+        }
+
+    }
+
+}
