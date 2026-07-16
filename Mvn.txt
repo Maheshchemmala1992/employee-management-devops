@@ -1,0 +1,87 @@
+mvn archetype:generate \
+-DgroupId=com.demo \
+-DartifactId=java-webapp \
+-DarchetypeArtifactId=maven-archetype-webapp \
+-DinteractiveMode=false
+
+
+===================================================
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.demo</groupId>
+    <artifactId>java-webapp</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>war</packaging>
+
+    <name>java-webapp Maven Webapp</name>
+    <url>http://maven.apache.org</url>
+
+    <dependencies>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>3.8.1</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>java-webapp</finalName>
+
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-war-plugin</artifactId>
+                <version>3.4.0</version>
+                <configuration>
+                    <failOnMissingWebXml>false</failOnMissingWebXml>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
+===================
+<html>
+<head>
+    <title>Employee Portal</title>
+</head>
+<body>
+    <h1>Welcome to Employee Management System</h1>
+
+    <h2>DevOps Pipeline Demo</h2>
+
+    <p>Application Version : 1.0</p>
+
+    <p>Environment : Development</p>
+
+    <p>Server : Apache Tomcat</p>
+
+    <p>Built Using Maven</p>
+
+    <p>Containerized Using Docker</p>
+</body>
+</html>
+=====================
+=====================
+vi Dockerfile
+=====================
+FROM tomcat:9.0-jdk17-temurin
+
+RUN rm -rf /usr/local/tomcat/webapps/*
+
+COPY target/java-webapp.war /usr/local/tomcat/webapps/ROOT.war
+
+EXPOSE 8080
+
+CMD ["catalina.sh", "run"]
+
+=> docker build -t java-webapp:v1 .
+=> docker run -d --name java-webapp -p 8080:8080 java-webapp:v1
+==================
+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
